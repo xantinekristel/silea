@@ -10,3 +10,6 @@ yarn-debug.log*
 yarn-error.log*
 .netlify
 coverage
+
+# TS build info
+*.tsbuildinfo
