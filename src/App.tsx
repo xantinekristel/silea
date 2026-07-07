@@ -3,7 +3,8 @@ import { AccountResult, EngineInput, Status } from "./engine/types";
 import { ALL_STATUSES } from "./engine/status";
 import { processAccount } from "./engine/engine";
 import { sampleInput } from "./engine/fixtures";
-import { parseInputs } from "./engine/parse";
+import { parseAccountList, parseInputs } from "./engine/parse";
+import { assembleInputViaConnectors, mockConnectors } from "./connectors/pipeline";
 import {
   buildAuditCsv,
   buildExceptionsWorkbook,
@@ -20,7 +21,7 @@ import { ResultsTable } from "./components/ResultsTable";
 const USER = "web-user";
 const CHECKPOINT_KEY = "silea:checkpoint";
 
-type Source = "sample" | "upload" | null;
+type Source = "sample" | "upload" | "connectors" | null;
 type Progress = { done: number; total: number; counts: Record<Status, number> };
 
 const emptyCounts = () =>
@@ -45,13 +46,17 @@ export default function App() {
   const [tab, setTab] = useState<"all" | "exceptions">("all");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const accountInput = useRef<HTMLInputElement>(null);
   const ledgerInput = useRef<HTMLInputElement>(null);
   const siInput = useRef<HTMLInputElement>(null);
 
   const uploadReady = !!accountFile;
-  const canProcess = source === "sample" || (source === "upload" && uploadReady);
+  const canProcess =
+    source === "sample" ||
+    source === "connectors" ||
+    (source === "upload" && uploadReady);
 
   const fileBlobs = useMemo(() => {
     const map = new Map<string, Blob>();
@@ -64,6 +69,7 @@ export default function App() {
     setResults(null);
     setMessage(null);
     setError(null);
+    setWarnings([]);
     setProgress({ done: 0, total: 0, counts: emptyCounts() });
   }
 
@@ -82,8 +88,27 @@ export default function App() {
     setter();
   }
 
+  function loadConnectors() {
+    setSource("connectors");
+    resetResults();
+    setMessage(
+      "Mock connector mode: SAP cross-checks contracts, NOAH supplies the ledgers, and the SI Retrieval App supplies the SIs — all canned. Click Start Processing to run the full SAP→NOAH→SI→match pipeline. (Real adapters plug in on a local Windows build; see the repo's local-extractor/.)",
+    );
+  }
+
   async function buildEngineInput(): Promise<EngineInput> {
     if (source === "sample") return sampleInput;
+    if (source === "connectors") {
+      const accounts = accountFile
+        ? await parseAccountList(accountFile)
+        : sampleInput.accounts;
+      const { input, warnings: w } = await assembleInputViaConnectors(
+        accounts,
+        mockConnectors,
+      );
+      setWarnings(w);
+      return input;
+    }
     if (!accountFile) throw new Error("Select an account list first.");
     const indexFile = siFiles.find((f) => isIndexFile(f.name)) ?? null;
     const siPdfNames = siFiles
@@ -243,6 +268,9 @@ export default function App() {
             <button className="btn btn-ghost" onClick={loadSample}>
               Load Sample Data
             </button>
+            <button className="btn btn-ghost" onClick={loadConnectors}>
+              Auto-Extract (Mock SAP/NOAH)
+            </button>
             <button
               className="btn btn-ghost"
               onClick={async () =>
@@ -258,15 +286,23 @@ export default function App() {
 
           <ul className="filelist">
             <li>
-              <span className={source === "sample" ? "ok" : accountFile ? "ok" : "muted"}>
+              <span
+                className={
+                  source === "sample" || source === "connectors" || accountFile
+                    ? "ok"
+                    : "muted"
+                }
+              >
                 {source === "sample"
                   ? "Sample dataset (5 accounts)"
-                  : accountFile
-                    ? `Account list: ${accountFile.name}`
-                    : "Account list: not selected"}
+                  : source === "connectors"
+                    ? `Mock connectors: SAP → NOAH → SI${accountFile ? ` (account list: ${accountFile.name})` : " (5 sample accounts)"}`
+                    : accountFile
+                      ? `Account list: ${accountFile.name}`
+                      : "Account list: not selected"}
               </span>
             </li>
-            {source !== "sample" && (
+            {source === "upload" && (
               <>
                 <li className={ledgerFiles.length ? "ok" : "muted"}>
                   Ledger files: {ledgerFiles.length || "none"}
@@ -322,6 +358,16 @@ export default function App() {
 
           {error && <div className="alert alert-bad">⚠ {error}</div>}
           {message && <div className="alert alert-info">{message}</div>}
+          {warnings.length > 0 && (
+            <div className="alert alert-warn">
+              <strong>Connector warnings ({warnings.length}):</strong>
+              <ul className="warn-list">
+                {warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* Step 3 — results */}

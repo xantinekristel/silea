@@ -19,6 +19,10 @@ Give it three things (or click **Load Sample Data** to try instantly):
 3. **SI folder / index** — Excel/CSV listing which OR numbers have a retrieved
    SI, or a folder of `{ORNumber}_SI.pdf` files.
 
+Or click **Auto-Extract (Mock SAP/NOAH)** to run the whole **SAP → NOAH → SI →
+match** pipeline against canned connector data — the same seam the real
+adapters plug into later (see *Connectors* below).
+
 Click **Start Processing** and SILEA:
 
 - Resolves each account's contract numbers (current + up to 2 previous).
@@ -99,12 +103,49 @@ src/
   App.tsx            main staff screen
 ```
 
+### Connectors — the SAP / NOAH / SI seam (`src/connectors/`)
+
+The engine reads a plain `EngineInput` (accounts + ledgers + SIs); *where that
+data comes from* is behind a connector interface, so live systems plug in later
+without touching the core:
+
+```
+src/connectors/
+  types.ts              Sap / Noah / Si connector interfaces (SPEC §10)
+  sap/                  Phase 3 — mock ZRGCSTAT contract lookup
+  noah/                 Phase 4 — mock ledger export + identity verification
+  si/                   Phase 5 — mock SI Retrieval App
+  pipeline.ts           chains SAP → NOAH → SI → EngineInput (Phase 6 shape)
+```
+
+The browser build ships **mock adapters** returning canned data (`SPEC §11`), so
+the full pipeline is testable in the cloud today —
+`src/connectors/pipeline.test.ts` proves the orchestrated path reproduces the
+same five statuses. The mock NOAH/SI adapters also attach source URLs, which
+show up as **clickable ledger/SI links** in the tracker and results view.
+
+### Live extraction is a separate, local-only deliverable (`local-extractor/`)
+
+The real SAP/NOAH/SI acquisition **cannot run on Netlify or in any cloud
+sandbox** — a hosted web page can't drive SAP GUI or reach NOAH on your internal
+network. That half lives in [`local-extractor/`](./local-extractor): a Python
+scaffold (SAP GUI Scripting + Playwright/NOAH + SI Retrieval App) that runs on a
+staff Windows machine, attaches to sessions you've logged into by hand (no stored
+credentials), and writes the `SPEC §7` file layout this app consumes. It needs
+**written IT approval** first (`SPEC §10`). A cross-platform `--demo` mode emits
+the five-fixture inputs so you can see the hand-off end to end:
+
+```bash
+cd local-extractor && python -m silea_extractor.cli --demo --out ./out
+# then upload out/account_list.csv, out/Ledgers/*, out/si_index.csv to the web app
+```
+
 ### Not in scope (yet)
 
-Phases 3–6 (SAP GUI scripting, NOAH browser automation, SI Retrieval App
-connector, full orchestrator) are intentionally **not** built. Per `SPEC §10`
-they require IT approval and a local Windows machine. The engine is structured
-so those connectors can feed it later without changing the core.
+Phases 3–6 (live SAP GUI scripting, live NOAH automation, live SI Retrieval App
+connector, full orchestrator) are intentionally **stubbed**, not built against
+real systems. Per `SPEC §10` they require IT approval and a local Windows
+machine.
 
 ## Business-rule assumptions
 

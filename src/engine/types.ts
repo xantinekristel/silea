@@ -29,6 +29,7 @@ export interface Ledger {
   contract_no: string;
   file_path: string;
   payments: Payment[];
+  source_url?: string | null; // optional link to the ledger source (e.g. NOAH)
 }
 
 /** SPEC §5.4 — SI record retrieved from the SI Retrieval App. */
@@ -36,6 +37,7 @@ export interface SI {
   or_number: string; // join key back to Payment
   si_file_path: string | null; // null = SI not retrieved
   retrieved: boolean;
+  si_url?: string | null; // optional link to the SI (e.g. SI Retrieval App)
 }
 
 /** The exact status strings from SPEC §6.3. Do not add statuses without asking. */
@@ -78,8 +80,8 @@ export interface AccountResult {
   si_count: number;
   findings: Finding[];
   // File references for the tracker / submission package.
-  ledger_files: { contract_no: string; file_path: string }[];
-  si_files: { or_number: string; si_file_path: string }[];
+  ledger_files: { contract_no: string; file_path: string; url?: string | null }[];
+  si_files: { or_number: string; si_file_path: string; url?: string | null }[];
 }
 
 /** The full parsed input set the engine operates on. */

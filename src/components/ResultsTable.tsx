@@ -90,7 +90,13 @@ export function ResultsTable({
                               {r.ledger_files.length ? (
                                 r.ledger_files.map((f) => (
                                   <li key={f.file_path} className="mono">
-                                    {f.file_path}
+                                    {f.url ? (
+                                      <a href={f.url} target="_blank" rel="noreferrer">
+                                        {f.file_path}
+                                      </a>
+                                    ) : (
+                                      f.file_path
+                                    )}
                                   </li>
                                 ))
                               ) : (
@@ -104,7 +110,13 @@ export function ResultsTable({
                               {r.si_files.length ? (
                                 r.si_files.map((f) => (
                                   <li key={f.or_number} className="mono">
-                                    {f.si_file_path}
+                                    {f.url ? (
+                                      <a href={f.url} target="_blank" rel="noreferrer">
+                                        {f.si_file_path}
+                                      </a>
+                                    ) : (
+                                      f.si_file_path
+                                    )}
                                   </li>
                                 ))
                               ) : (

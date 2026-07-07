@@ -20,7 +20,8 @@ function sheetToBlob(wb: XLSX.WorkBook): Blob {
   });
 }
 
-/** SPEC §6.4(1) — the updated Excel tracker, one row per account. */
+/** SPEC §6.4(1) — the updated Excel tracker, one row per account, with
+ *  hyperlinks to each ledger and SI when a source URL (e.g. NOAH) is known. */
 export function buildTrackerWorkbook(results: AccountResult[]): Blob {
   const rows = results.map((r) => ({
     Account: r.account_id,
@@ -34,11 +35,36 @@ export function buildTrackerWorkbook(results: AccountResult[]): Blob {
     SIs: r.si_count,
     "Ledger Files": r.ledger_files.map((f) => f.file_path).join(" | "),
     "SI Files": r.si_files.map((f) => f.si_file_path).join(" | "),
+    "Ledger Link": r.ledger_files.find((f) => f.url)?.url ?? "",
+    "SI Link": r.si_files.find((f) => f.url)?.url ?? "",
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Turn the link columns into real clickable hyperlinks (SPEC §6.4 hyperlinks).
+  const header = Object.keys(rows[0] ?? {});
+  const ledgerCol = header.indexOf("Ledger Link");
+  const siCol = header.indexOf("SI Link");
+  rows.forEach((row, i) => {
+    const r = i + 1; // data starts on sheet row 1 (row 0 is the header)
+    setHyperlink(ws, r, ledgerCol, row["Ledger Link"]);
+    setHyperlink(ws, r, siCol, row["SI Link"]);
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Tracker");
   return sheetToBlob(wb);
+}
+
+function setHyperlink(
+  ws: XLSX.WorkSheet,
+  row: number,
+  col: number,
+  url: string,
+): void {
+  if (!url || col < 0) return;
+  const ref = XLSX.utils.encode_cell({ r: row, c: col });
+  const cell = ws[ref];
+  if (cell) cell.l = { Target: url, Tooltip: url };
 }
 
 /** SPEC §6.4(2) — exceptions report, non-Complete accounts grouped by status. */

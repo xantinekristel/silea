@@ -1,0 +1,11 @@
+# SILEA local extractor dependencies (Windows / local machine only).
+# The --demo mode uses only the Python standard library and needs none of these.
+
+# NOAH browser automation (Phase 4)
+playwright>=1.40
+
+# SAP GUI Scripting (Phase 3) — Windows only
+pywin32>=306 ; platform_system == "Windows"
+
+# Reading SAP's exported Excel (Phase 3)
+openpyxl>=3.1

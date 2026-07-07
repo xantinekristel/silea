@@ -219,6 +219,18 @@ body {
   background: var(--info-bg);
   color: var(--info);
 }
+.alert-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.warn-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.detail a {
+  color: var(--brand);
+}
 
 .cards {
   display: grid;

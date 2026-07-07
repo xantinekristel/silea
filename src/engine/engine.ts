@@ -39,8 +39,16 @@ export function processAccount(
   const findings: Finding[] = [];
   const missing_or_numbers: Payment[] = [];
   const missing_sis: string[] = [];
-  const ledger_files: { contract_no: string; file_path: string }[] = [];
-  const si_files: { or_number: string; si_file_path: string }[] = [];
+  const ledger_files: {
+    contract_no: string;
+    file_path: string;
+    url?: string | null;
+  }[] = [];
+  const si_files: {
+    or_number: string;
+    si_file_path: string;
+    url?: string | null;
+  }[] = [];
 
   const contractNos = contractNumbersFor(account);
   const siIndex = new Map<string, SI>();
@@ -63,7 +71,11 @@ export function processAccount(
         contract_no: contractNo,
       });
     } else {
-      ledger_files.push({ contract_no: contractNo, file_path: ledger.file_path });
+      ledger_files.push({
+        contract_no: contractNo,
+        file_path: ledger.file_path,
+        url: ledger.source_url ?? undefined,
+      });
     }
   }
 
@@ -103,6 +115,7 @@ export function processAccount(
           si_files.push({
             or_number: payment.or_number,
             si_file_path: si.si_file_path,
+            url: si.si_url ?? undefined,
           });
         } else {
           missing_sis.push(payment.or_number);

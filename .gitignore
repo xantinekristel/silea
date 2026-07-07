@@ -13,3 +13,9 @@ coverage
 
 # TS build info
 *.tsbuildinfo
+
+# Python (local-extractor)
+__pycache__/
+*.pyc
+local-extractor/extractor_output/
+local-extractor/out/
