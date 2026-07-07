@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  web:
+    name: Web app — type-check, build, test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,5 +18,28 @@ jobs:
       - run: npm ci
       - name: Type-check + build
         run: npm run build
-      - name: Run engine tests (5 fixture cases)
+      - name: Run engine + connector tests
         run: npm test
+
+  extractor:
+    name: Local extractor — demo smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run --demo (writes the SPEC §12 fixture inputs)
+        working-directory: local-extractor
+        run: python -m silea_extractor.cli --demo --out ./out
+      - name: Verify demo output shape
+        working-directory: local-extractor
+        run: |
+          test -f out/account_list.csv
+          test -f out/si_index.csv
+          test -f "out/Ledgers/Maven_10-A_JDC_CN-A-CUR_Ledger.csv"
+          # CN-D-PREV ledger must be absent (drives "Missing Ledger File")
+          if ls out/Ledgers/*CN-D-PREV* 2>/dev/null; then
+            echo "CN-D-PREV ledger should not exist" && exit 1
+          fi
+          echo "Extractor demo output verified."
