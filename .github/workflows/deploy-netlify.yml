@@ -1,0 +1,66 @@
+name: Deploy to Netlify
+
+# Alternative to Netlify's own Git integration: deploy from GitHub Actions so a
+# production deploy only happens after build + tests pass (CI-gated).
+#
+# One-time setup (repo → Settings → Secrets and variables → Actions):
+#   NETLIFY_AUTH_TOKEN  – Netlify user access token
+#                         (Netlify → User settings → Applications → New access token)
+#   NETLIFY_SITE_ID     – the target site's API ID
+#                         (Netlify → Site configuration → Site details → API ID)
+#
+# If either secret is missing the deploy step is skipped (the run still passes),
+# so this workflow is safe to merge before you've configured Netlify.
+#
+# NOTE: if you use THIS workflow, turn OFF auto-publish in the Netlify UI
+# (Site configuration → Build & deploy → Stop builds) so the two paths don't
+# both deploy.
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: netlify-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build, test, deploy
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+
+      - name: Type-check + build
+        run: npm run build
+      - name: Run engine + connector tests
+        run: npm test
+
+      - name: Check Netlify secrets
+        id: check
+        run: |
+          if [ -n "$NETLIFY_AUTH_TOKEN" ] && [ -n "$NETLIFY_SITE_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::NETLIFY_AUTH_TOKEN / NETLIFY_SITE_ID not set — skipping deploy. Add them in repo Settings → Secrets → Actions to enable production deploys."
+          fi
+
+      - name: Deploy dist/ to Netlify (production)
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          npx --yes netlify-cli@17 deploy \
+            --prod \
+            --dir=dist \
+            --site="$NETLIFY_SITE_ID" \
+            --auth="$NETLIFY_AUTH_TOKEN" \
+            --message="Deploy ${{ github.sha }} from GitHub Actions"

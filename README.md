@@ -70,22 +70,44 @@ npm run build    # type-check + production build to dist/
 
 ## Deploy
 
-### Netlify (recommended — auto-deploy from GitHub)
+Pick **one** of the two Netlify paths below — don't run both, or each push
+deploys twice.
 
-1. Push this repo to GitHub (already done if you're reading this there).
-2. In Netlify: **Add new site → Import an existing project → GitHub → `silea`**.
-3. Netlify reads [`netlify.toml`](./netlify.toml) automatically:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-4. Every push to the branch redeploys the site.
+### Option A — Netlify Git integration (simplest, recommended)
 
-### GitHub Pages (alternative)
+Netlify builds and publishes on every push, driven by [`netlify.toml`](./netlify.toml).
 
-`vite.config.ts` uses `base: "./"` so the build works from any path. Build with
-`npm run build` and publish the `dist/` folder (e.g. via a Pages action).
+1. In Netlify: **Add new site → Import an existing project → Deploy with GitHub.**
+2. Authorize Netlify and grant it access to the (private) `silea` repo.
+3. Pick **`xantinekristel/silea`**. Settings are pre-filled from `netlify.toml`
+   (build `npm run build`, publish `dist`, branch `main`). Click **Deploy**.
+4. Every push to `main` redeploys automatically. No secrets needed.
 
-A CI workflow at [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
-type-checks, builds and runs the tests on every push/PR.
+### Option B — CI-gated deploy from GitHub Actions
+
+Deploys only **after build + tests pass**, via
+[`.github/workflows/deploy-netlify.yml`](./.github/workflows/deploy-netlify.yml).
+
+1. Create a Netlify site (you can leave its Git integration off — or turn it off
+   under *Site configuration → Build & deploy → Stop builds* so it doesn't also
+   deploy).
+2. Add two repo secrets (**Settings → Secrets and variables → Actions**):
+   - `NETLIFY_AUTH_TOKEN` — Netlify *User settings → Applications → New access token*
+   - `NETLIFY_SITE_ID` — the site's *Site configuration → Site details → API ID*
+3. Push to `main` (or run the workflow manually). It builds, tests, then deploys
+   `dist/` to production. Until the secrets exist the deploy step **skips
+   gracefully** (the run still passes), so the workflow is safe to have around.
+
+### CI
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) type-checks, builds and
+tests the web app **and** smoke-tests the local extractor's `--demo` on every
+push/PR.
+
+### GitHub Pages (also possible)
+
+`vite.config.ts` uses `base: "./"` so the build works from any path — build with
+`npm run build` and publish `dist/` via a Pages action if you prefer Pages.
 
 ## Architecture
 
